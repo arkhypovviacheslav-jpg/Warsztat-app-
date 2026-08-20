@@ -3,10 +3,39 @@ from datetime import datetime
 import streamlit as st
 
 st.set_page_config(
-    page_title="Ewidencja Warsztatu", page_icon="🚗", layout="centered"
+    page_title="Ewidencja Warsztatu",
+    page_icon="🚗",
+    layout="centered",
+    initial_sidebar_state="collapsed",
 )
 
-# Podłączenie do bazy danych
+# === ЖЕСТКАЯ БЛОКИРОВКА СЛУЖЕБНЫХ ПАНЕЛЕЙ (CSS) ===
+hide_st_style = """
+    <style>
+    /* Прячем верхнюю панель, меню, кнопку Share и GitHub */
+    #MainMenu {visibility: hidden !important;}
+    footer {visibility: hidden !important;}
+    header {visibility: hidden !important;}
+    [data-testid="stHeader"] {display: none !important;}
+    [data-testid="stToolbar"] {display: none !important;}
+    [data-testid="stDecoration"] {display: none !important;}
+    [data-testid="stStatusWidget"] {display: none !important;}
+    
+    # Прячем плавающую кнопку Manage app внизу
+    [data-testid="manage-app-button"] {display: none !important;}
+    div[class*="stAppViewer"] > div:nth-child(2) {display: none !important;}
+    iframe[title="streamlit_app"] {height: 100vh !important;}
+    
+    /* Убираем лишние отступы сверху */
+    .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
+    }
+    </style>
+"""
+st.markdown(hide_st_style, unsafe_allow_html=True)
+
+# --- БАЗА ДАННЫХ ---
 conn = sqlite3.connect("autoservice.db", check_same_thread=False)
 cursor = conn.cursor()
 cursor.execute(
@@ -73,7 +102,6 @@ search_query = (
 
 st.subheader("📋 Lista wszystkich pojazdów")
 
-# Unikalne pojazdy
 if search_query:
     cursor.execute(
         "SELECT DISTINCT car_number FROM records WHERE car_number LIKE ? OR car_model LIKE ? ORDER BY id DESC",
