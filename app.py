@@ -9,10 +9,10 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# === ЖЕСТКАЯ БЛОКИРОВКА СЛУЖЕБНЫХ ПАНЕЛЕЙ (CSS) ===
+# === ПОЛНАЯ БЛОКИРОВКА СЛУЖЕБНЫХ ПАНЕЛЕЙ И ИКОНОК ВНИЗУ (CSS) ===
 hide_st_style = """
     <style>
-    /* Прячем верхнюю панель, меню, кнопку Share и GitHub */
+    /* Прячем верхнее меню, шапку и кнопки GitHub/Share */
     #MainMenu {visibility: hidden !important;}
     footer {visibility: hidden !important;}
     header {visibility: hidden !important;}
@@ -21,15 +21,18 @@ hide_st_style = """
     [data-testid="stDecoration"] {display: none !important;}
     [data-testid="stStatusWidget"] {display: none !important;}
     
-    # Прячем плавающую кнопку Manage app внизу
+    /* Прячем нижние иконки (Manage app, корону, логотипы Streamlit) */
     [data-testid="manage-app-button"] {display: none !important;}
+    .viewerBadge_container__1A53K {display: none !important;}
+    .viewerBadge_link__1S137 {display: none !important;}
+    [class*="viewerBadge"] {display: none !important;}
+    [class*="styles_viewerBadge"] {display: none !important;}
     div[class*="stAppViewer"] > div:nth-child(2) {display: none !important;}
-    iframe[title="streamlit_app"] {height: 100vh !important;}
     
-    /* Убираем лишние отступы сверху */
+    /* Оптимизируем отступы для экрана мобильного */
     .block-container {
         padding-top: 1rem !important;
-        padding-bottom: 1rem !important;
+        padding-bottom: 2rem !important;
     }
     </style>
 """
@@ -53,7 +56,7 @@ conn.commit()
 
 st.title("🚗 Warsztat - Baza Napraw")
 
-# --- FORMULARZ DODAWANIA NOWEGO POJAZDU ---
+# --- ФОРМА ДОБАВЛЕНИЯ НОВОЙ МАШИНЫ ---
 with st.expander("➕ Dodaj nowy pojazd do bazy", expanded=False):
     with st.form("new_car_form", clear_on_submit=True):
         new_num = (
@@ -90,7 +93,7 @@ with st.expander("➕ Dodaj nowy pojazd do bazy", expanded=False):
 
 st.divider()
 
-# --- WYSZUKIWARKA / FILTR ---
+# --- ПОИСК И ФИЛЬТРАЦИЯ ---
 search_query = (
     st.text_input(
         "🔍 Szukaj w bazie (nr rejestracyjny lub marka)",
