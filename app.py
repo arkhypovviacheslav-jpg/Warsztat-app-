@@ -128,12 +128,13 @@ if conn:
             search_pattern = f"%{raw_search.lower().replace(' ', '')}%"
             cursor.execute(
                 """
-                SELECT DISTINCT car_number 
+                SELECT car_number 
                 FROM records 
                 WHERE LOWER(REPLACE(car_number, ' ', '')) LIKE %s 
                    OR LOWER(car_model) LIKE %s 
                    OR LOWER(description) LIKE %s 
-                ORDER BY car_number ASC
+                GROUP BY car_number 
+                ORDER BY MAX(id) DESC
                 """,
                 (
                     search_pattern,
@@ -143,7 +144,12 @@ if conn:
             )
         else:
             cursor.execute(
-                "SELECT DISTINCT car_number FROM records ORDER BY id DESC"
+                """
+                SELECT car_number 
+                FROM records 
+                GROUP BY car_number 
+                ORDER BY MAX(id) DESC
+                """
             )
 
         unique_cars = cursor.fetchall()
