@@ -1,62 +1,57 @@
-import sqlite3
 from datetime import datetime
+import pandas as pd
 import streamlit as st
+from streamlit_gsheets import GSheetsConnection
 
 st.set_page_config(
-    page_title="Ewidencja Warsztatu",
+    page_title="Warsztat - Baza Napraw",
     page_icon="🚗",
     layout="centered",
     initial_sidebar_state="collapsed",
 )
 
-# === ПОЛНАЯ БЛОКИРОВКА СЛУЖЕБНЫХ ПАНЕЛЕЙ И ИКОНОК ВНИЗУ (CSS) ===
-hide_st_style = """
-    <style>
-    /* Прячем верхнее меню, шапку и кнопки GitHub/Share */
-    #MainMenu {visibility: hidden !important;}
-    footer {visibility: hidden !important;}
-    header {visibility: hidden !important;}
-    [data-testid="stHeader"] {display: none !important;}
-    [data-testid="stToolbar"] {display: none !important;}
-    [data-testid="stDecoration"] {display: none !important;}
-    [data-testid="stStatusWidget"] {display: none !important;}
-    
-    /* Прячем нижние иконки (Manage app, корону, логотипы Streamlit) */
-    [data-testid="manage-app-button"] {display: none !important;}
-    .viewerBadge_container__1A53K {display: none !important;}
-    .viewerBadge_link__1S137 {display: none !important;}
-    [class*="viewerBadge"] {display: none !important;}
-    [class*="styles_viewerBadge"] {display: none !important;}
-    div[class*="stAppViewer"] > div:nth-child(2) {display: none !important;}
-    
-    /* Оптимизируем отступы для экрана мобильного */
-    .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 2rem !important;
-    }
-    </style>
-"""
-st.markdown(hide_st_style, unsafe_allow_html=True)
+# === ССЫЛКА НА ВАШУ GOOGLE ТАБЛИЦУ ===
+SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/10JJCxjuI3wQnw38MWO-S7h3CWh2oY9HqUJHzm7aRDwc/edit?usp=sharing"
 
-# --- БАЗА ДАННЫХ ---
-conn = sqlite3.connect("autoservice.db", check_same_thread=False)
-cursor = conn.cursor()
-cursor.execute(
+# Подключение к Google Sheets
+conn = st.connection("gsheets", type=GSheetsConnection)
+
+
+def load_data():
+    try:
+        df = conn.read(spreadsheet=SPREADSHEET_URL, ttl="0")
+        return df.dropna(how="all")
+    except Exception:
+        return pd.DataFrame(
+            columns=[
+                "id",
+                "car_number",
+                "car_model",
+                "work_date",
+                "description",
+            ]
+        )
+
+
+# === PWA & CSS ===
+st.markdown(
     """
-CREATE TABLE IF NOT EXISTS records (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    car_number TEXT NOT NULL,
-    car_model TEXT,
-    work_date TEXT,
-    description TEXT
+    <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Warsztat%22,%22short_name%22:%22Warsztat%22,%22start_url%22:%22/%22,%22display%22:%22standalone%22,%22background_color%22:%22%230e1117%22,%22theme_color%22:%22%230e1117%22,%22icons%22:[{%22src%22:%22https://img.icons8.com/emoji/192/automobile-emoji.png%22,%22sizes%22:%22192x192%22,%22type%22:%22image/png%22}]}">
+    <style>
+    #MainMenu, footer, header, [data-testid="stHeader"], [data-testid="stToolbar"], 
+    [data-testid="stDecoration"], [data-testid="stStatusWidget"], [data-testid="manage-app-button"], 
+    [class*="viewerBadge"] {display: none !important;}
+    .block-container {padding-top: 1rem !important; padding-bottom: 2rem !important;}
+    </style>
+""",
+    unsafe_allow_html=True,
 )
-"""
-)
-conn.commit()
 
 st.title("🚗 Warsztat - Baza Napraw")
 
-# --- ФОРМА ДОБАВЛЕНИЯ НОВОЙ МАШИНЫ ---
+df = load_data()
+
+# --- ФОРМА ДОБАВЛЕНИЯ НОВОГО АВТОМОБИЛЯ ---
 with st.expander("➕ Dodaj nowy pojazd do bazy", expanded=False):
     with st.form("new_car_form", clear_on_submit=True):
         new_num = (
@@ -64,11 +59,13 @@ with st.expander("➕ Dodaj nowy pojazd do bazy", expanded=False):
             .strip()
             .upper()
         )
-        new_model = st.text_input("Marka / Model", placeholder="Toyota Camry")
+        new_model = st.text_input(
+            "Marka / Model", placeholder="Toyota Camry"
+        ).strip()
         new_date = st.date_input("Data pierwszej naprawy", value=datetime.now())
         new_work = st.text_area(
             "Wykonane prace / Opis *", placeholder="Wymiana oleju, filtrów..."
-        )
+        ).strip()
 
         btn_submit = st.form_submit_button(
             "Zapisz nowy pojazd", type="primary", use_container_width=True
@@ -76,16 +73,20 @@ with st.expander("➕ Dodaj nowy pojazd do bazy", expanded=False):
 
         if btn_submit:
             if new_num and new_work:
-                cursor.execute(
-                    "INSERT INTO records (car_number, car_model, work_date, description) VALUES (?, ?, ?, ?)",
-                    (
-                        new_num,
-                        new_model,
-                        new_date.strftime("%d.%m.%Y"),
-                        new_work,
-                    ),
+                new_id = len(df) + 1
+                new_row = pd.DataFrame(
+                    [
+                        {
+                            "id": new_id,
+                            "car_number": new_num,
+                            "car_model": new_model,
+                            "work_date": new_date.strftime("%d.%m.%Y"),
+                            "description": new_work,
+                        }
+                    ]
                 )
-                conn.commit()
+                updated_df = pd.concat([df, new_row], ignore_index=True)
+                conn.update(spreadsheet=SPREADSHEET_URL, data=updated_df)
                 st.success(f"Zapisano pojazd: {new_num}")
                 st.rerun()
             else:
@@ -93,98 +94,123 @@ with st.expander("➕ Dodaj nowy pojazd do bazy", expanded=False):
 
 st.divider()
 
-# --- ПОИСК И ФИЛЬТРАЦИЯ ---
-search_query = (
-    st.text_input(
-        "🔍 Szukaj w bazie (nr rejestracyjny lub marka)",
-        placeholder="Wpisz np. PO12345 lub BMW...",
-    )
-    .strip()
-    .upper()
-)
+# --- ПОИСК И СПИСОК ЗАПИСЕЙ ---
+raw_search = st.text_input(
+    "🔍 Szukaj w bazie (nr rejestracyjny, marka lub opis)",
+    placeholder="Wpisz np. PO12345, Toyota lub olej...",
+).strip()
 
 st.subheader("📋 Lista wszystkich pojazdów")
 
-if search_query:
-    cursor.execute(
-        "SELECT DISTINCT car_number FROM records WHERE car_number LIKE ? OR car_model LIKE ? ORDER BY id DESC",
-        (f"%{search_query}%", f"%{search_query}%"),
-    )
-else:
-    cursor.execute("SELECT DISTINCT car_number FROM records ORDER BY id DESC")
+if not df.empty:
+    filtered_df = df.copy()
+    if raw_search:
+        search_term = raw_search.lower().replace(" ", "")
+        filtered_df = filtered_df[
+            filtered_df["car_number"]
+            .astype(str)
+            .str.lower()
+            .str.replace(" ", "")
+            .str.contains(search_term)
+            | filtered_df["car_model"]
+            .astype(str)
+            .str.lower()
+            .str.contains(raw_search.lower())
+            | filtered_df["description"]
+            .astype(str)
+            .str.lower()
+            .str.contains(raw_search.lower())
+        ]
 
-unique_cars = cursor.fetchall()
+    unique_cars = filtered_df["car_number"].unique()
 
-if unique_cars:
-    for (car_num,) in unique_cars:
-        cursor.execute(
-            "SELECT id, car_model, work_date, description FROM records WHERE car_number = ? ORDER BY id ASC",
-            (car_num,),
-        )
-        car_records = cursor.fetchall()
+    if len(unique_cars) > 0:
+        for car_num in unique_cars:
+            car_records = df[df["car_number"] == car_num]
+            last_model = (
+                car_records.iloc[-1]["car_model"]
+                if pd.notna(car_records.iloc[-1]["car_model"])
+                and car_records.iloc[-1]["car_model"] != ""
+                else "Nieokreślona marka"
+            )
+            card_title = (
+                f"🚘 {car_num} — {last_model} (Wpisów: {len(car_records)})"
+            )
 
-        last_model = (
-            car_records[-1][1] if car_records[-1][1] else "Nieokreślona marka"
-        )
-        card_title = (
-            f"🚘 {car_num} — {last_model} (Wpisów: {len(car_records)})"
-        )
+            with st.expander(card_title):
+                st.markdown("### 📜 Historia napraw:")
 
-        with st.expander(card_title):
-            st.markdown("### 📜 Historia napraw:")
+                for _, row in car_records.iterrows():
+                    with st.container(border=True):
+                        col_info, col_del = st.columns([5, 1])
+                        with col_info:
+                            st.write(f"📅 **Data:** {row['work_date']}")
+                            st.write(f"🔧 **Prace:** {row['description']}")
+                        with col_del:
+                            if st.button(
+                                "🗑️",
+                                key=f"del_{row['id']}",
+                                help="Usuń ten wpis",
+                            ):
+                                updated_df = df[df["id"] != row["id"]]
+                                conn.update(
+                                    spreadsheet=SPREADSHEET_URL,
+                                    data=updated_df,
+                                )
+                                st.rerun()
 
-            for rec_id, model_name, work_date, desc in car_records:
-                with st.container(border=True):
-                    col_info, col_del = st.columns([5, 1])
-                    with col_info:
-                        st.write(f"📅 **Data:** {work_date}")
-                        st.write(f"🔧 **Prace:** {desc}")
-                    with col_del:
-                        if st.button(
-                            "🗑️", key=f"del_{rec_id}", help="Usuń ten wpis"
-                        ):
-                            cursor.execute(
-                                "DELETE FROM records WHERE id = ?", (rec_id,)
+                st.markdown("---")
+                st.markdown("### ➕ Dodaj kolejną naprawę dla tego pojazdu:")
+
+                with st.form(
+                    f"add_repair_form_{car_num}", clear_on_submit=True
+                ):
+                    next_date = st.date_input(
+                        "Data nowej naprawy",
+                        value=datetime.now(),
+                        key=f"date_{car_num}",
+                    )
+                    next_work = st.text_area(
+                        "Wykonane prace / Opis *",
+                        placeholder="np. Wymiana klocków hamulcowych...",
+                        key=f"work_{car_num}",
+                    )
+
+                    btn_add_repair = st.form_submit_button(
+                        "➕ Dopisz naprawę do historii",
+                        type="primary",
+                        use_container_width=True,
+                    )
+
+                    if btn_add_repair:
+                        if next_work:
+                            new_id = (
+                                int(df["id"].max()) + 1 if not df.empty else 1
                             )
-                            conn.commit()
+                            new_row = pd.DataFrame(
+                                [
+                                    {
+                                        "id": new_id,
+                                        "car_number": car_num,
+                                        "car_model": last_model,
+                                        "work_date": next_date.strftime(
+                                            "%d.%m.%Y"
+                                        ),
+                                        "description": next_work,
+                                    }
+                                ]
+                            )
+                            updated_df = pd.concat(
+                                [df, new_row], ignore_index=True
+                            )
+                            conn.update(
+                                spreadsheet=SPREADSHEET_URL, data=updated_df
+                            )
+                            st.success(f"Dodano nową naprawę dla {car_num}!")
                             st.rerun()
-
-            st.markdown("---")
-            st.markdown("### ➕ Dodaj kolejną naprawę dla tego pojazdu:")
-
-            with st.form(f"add_repair_form_{car_num}", clear_on_submit=True):
-                next_date = st.date_input(
-                    "Data nowej naprawy",
-                    value=datetime.now(),
-                    key=f"date_{car_num}",
-                )
-                next_work = st.text_area(
-                    "Wykonane prace / Opis *",
-                    placeholder="np. Wymiana klocków hamulcowych...",
-                    key=f"work_{car_num}",
-                )
-
-                btn_add_repair = st.form_submit_button(
-                    "➕ Dopisz naprawę do historii",
-                    type="primary",
-                    use_container_width=True,
-                )
-
-                if btn_add_repair:
-                    if next_work:
-                        cursor.execute(
-                            "INSERT INTO records (car_number, car_model, work_date, description) VALUES (?, ?, ?, ?)",
-                            (
-                                car_num,
-                                last_model,
-                                next_date.strftime("%d.%m.%Y"),
-                                next_work,
-                            ),
-                        )
-                        conn.commit()
-                        st.success(f"Dodano nową naprawę dla {car_num}!")
-                        st.rerun()
-                    else:
-                        st.error("Proszę wpisać opis prac!")
+                        else:
+                            st.error("Proszę wpisać opis prac!")
+    else:
+        st.info("Nic nie znaleziono.")
 else:
-    st.info("Baza jest pusta lub nic nie znaleziono.")
+    st.info("Baza jest pusta. Dodaj pierwszy pojazd выше.")
