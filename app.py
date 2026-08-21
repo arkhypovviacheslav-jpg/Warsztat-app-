@@ -5,7 +5,7 @@ import psycopg2
 import streamlit as st
 
 st.set_page_config(
-    page_title="Warsztat - Baza Napraw",
+    page_title="Tomasz Auto Service",
     page_icon="🚗",
     layout="centered",
     initial_sidebar_state="collapsed",
