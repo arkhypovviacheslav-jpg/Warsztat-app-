@@ -1,4 +1,6 @@
 import os
+import io
+import csv
 from datetime import date, datetime
 from collections import defaultdict
 import psycopg2
@@ -44,22 +46,18 @@ def init_db():
 
 init_db()
 
-# Чистый CSS без тегов <head>
+# Чистый CSS без лишних тегов
 st.markdown("""
     <style>
-    /* Отключение зума от двойного тапа и задержки */
     html, body, [data-testid="stAppViewContainer"] {
         touch-action: manipulation !important;
         -webkit-text-size-adjust: 100% !important;
     }
-    
-    /* Скрытие стандартной шапки Streamlit */
     #MainMenu, footer, header, [data-testid="stHeader"], [data-testid="stToolbar"], 
     [data-testid="stDecoration"], [data-testid="stStatusWidget"], [data-testid="manage-app-button"], 
     [class*="viewerBadge"] {
         display: none !important;
     }
-    
     .block-container {
         padding-top: 1rem !important; 
         padding-bottom: 2rem !important;
@@ -68,6 +66,40 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🚗 Tomasz Auto Service")
+
+# --- БЛОК СКАЧИВАНИЯ БАЗЫ (В САМОМ ВЕРХУ) ---
+with st.expander("💾 Kopia zapasowa / Pobierz bazę", expanded=False):
+    conn = get_connection()
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT id, car_number, car_model, work_date, description FROM records ORDER BY id ASC")
+                rows = cursor.fetchall()
+                
+                if rows:
+                    output = io.StringIO()
+                    writer = csv.writer(output)
+                    
+                    # Заголовки для таблицы
+                    writer.writerow(["ID", "Numer rejestracyjny", "Marka / Model", "Data", "Opis prac"])
+                    
+                    for row in rows:
+                        writer.writerow(row)
+                    
+                    csv_data = output.getvalue()
+                    
+                    st.download_button(
+                        label="📥 Pobierz całą bazę (Excel / CSV)",
+                        data=csv_data,
+                        file_name=f"baza_auto_service_{date.today().strftime('%d_%m_%Y')}.csv",
+                        mime="text/csv",
+                        use_container_width=True,
+                        type="primary"
+                    )
+                else:
+                    st.info("Baza jest pusta, brak danych do pobrania.")
+        finally:
+            conn.close()
 
 if not DB_URL:
     st.warning("⚠️ Brak połączenia z bazą. Sprawdź zmienną DATABASE_URL w Render.")
