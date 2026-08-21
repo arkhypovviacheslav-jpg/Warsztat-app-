@@ -44,11 +44,23 @@ def init_db():
 
 init_db()
 
+# Блокировка масштабирования и адаптация под мобильные устройства
 st.markdown("""
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    </head>
     <style>
+    /* Отключение случайного зума и задержек при нажатии */
+    html, body, [data-testid="stAppViewContainer"] {
+        touch-action: manipulation;
+        -webkit-text-size-adjust: 100%;
+    }
+    
+    /* Скрытие стандартных шапок и подвалов Streamlit */
     #MainMenu, footer, header, [data-testid="stHeader"], [data-testid="stToolbar"], 
     [data-testid="stDecoration"], [data-testid="stStatusWidget"], [data-testid="manage-app-button"], 
     [class*="viewerBadge"] {display: none !important;}
+    
     .block-container {padding-top: 1rem !important; padding-bottom: 2rem !important;}
     </style>
 """, unsafe_allow_html=True)
@@ -163,7 +175,6 @@ if conn:
                                             finally:
                                                 del_conn.close()
 
-                                # Форма редактирования записи
                                 edit_key = f"show_edit_{rec_id}"
                                 if edit_clicked:
                                     st.session_state[edit_key] = not st.session_state.get(edit_key, False)
