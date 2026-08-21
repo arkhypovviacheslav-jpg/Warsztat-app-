@@ -53,7 +53,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🚗 Warsztat - Baza Napraw")
+st.title("🚗 Tomasz Auto Service")
 
 if not DB_URL:
     st.warning("⚠️ Brak połączenia z bazą. Sprawdź zmienną DATABASE_URL w Render.")
@@ -163,7 +163,7 @@ if conn:
                                             finally:
                                                 del_conn.close()
 
-                                # Форма редактирования конкретной записи
+                                # Форма редактирования записи
                                 edit_key = f"show_edit_{rec_id}"
                                 if edit_clicked:
                                     st.session_state[edit_key] = not st.session_state.get(edit_key, False)
@@ -172,7 +172,6 @@ if conn:
                                     with st.form(f"edit_form_{rec_id}"):
                                         st.markdown("**✏️ Edycja wpisu:**")
                                         
-                                        # Парсинг даты для календаря
                                         try:
                                             parsed_date = datetime.strptime(work_date, "%d.%m.%Y").date()
                                         except Exception:
