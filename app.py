@@ -44,24 +44,26 @@ def init_db():
 
 init_db()
 
-# Блокировка масштабирования и адаптация под мобильные устройства
+# Чистый CSS без тегов <head>
 st.markdown("""
-    <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    </head>
     <style>
-    /* Отключение случайного зума и задержек при нажатии */
+    /* Отключение зума от двойного тапа и задержки */
     html, body, [data-testid="stAppViewContainer"] {
-        touch-action: manipulation;
-        -webkit-text-size-adjust: 100%;
+        touch-action: manipulation !important;
+        -webkit-text-size-adjust: 100% !important;
     }
     
-    /* Скрытие стандартных шапок и подвалов Streamlit */
+    /* Скрытие стандартной шапки Streamlit */
     #MainMenu, footer, header, [data-testid="stHeader"], [data-testid="stToolbar"], 
     [data-testid="stDecoration"], [data-testid="stStatusWidget"], [data-testid="manage-app-button"], 
-    [class*="viewerBadge"] {display: none !important;}
+    [class*="viewerBadge"] {
+        display: none !important;
+    }
     
-    .block-container {padding-top: 1rem !important; padding-bottom: 2rem !important;}
+    .block-container {
+        padding-top: 1rem !important; 
+        padding-bottom: 2rem !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
